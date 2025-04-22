@@ -38,12 +38,12 @@ namespace DegiroPitGenerator
             }
             else
             {
-                var degiroIntegration = await new Integrations.Degiro.IntegrationFactory(_configuration).Create();
+                var degiroIntegration = await new IntegrationFactory(_configuration).Create();
 
-                transactionCsv = degiroIntegration.GetTransactions();
-                cashOperationCsv = degiroIntegration.GetCashOperations(pitYear);
+                transactionCsv = await degiroIntegration.GetTransactionsAsync();
+                cashOperationCsv = await degiroIntegration.GetCashOperationsAsync(pitYear);
             }
-                
+
             var degiroTransactions = transactionCsv.GetRows();
             var degiroCashOperations = cashOperationCsv.GetRows();
 
@@ -55,5 +55,5 @@ namespace DegiroPitGenerator
                 YearFees = _feeAdapter.Adapt(degiroCashOperations)
             };
         }
-    }
+   }
 }

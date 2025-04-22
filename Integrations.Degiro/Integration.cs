@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text;
+using System.Threading.Tasks;
 using Integrations.Degiro.Models;
 using Integrations.Degiro.Models.Configuration;
 using Newtonsoft.Json.Linq;
@@ -9,8 +10,8 @@ namespace Integrations.Degiro
 {
     public interface IIntegration
     {
-        ICsv<CsvTransaction> GetTransactions();
-        ICsv<CsvCashOperation> GetCashOperations(int year);
+        Task<ICsv<CsvTransaction>> GetTransactionsAsync();
+        Task<ICsv<CsvCashOperation>> GetCashOperationsAsync(int year);
     }
 
     internal class Integration : IIntegration
@@ -25,44 +26,51 @@ namespace Integrations.Degiro
             _configuration = configuration;
             _jSessionId = jSessionId;
             _client = new RestClient();
-            _accountId = GetAccountId();
+            _accountId = GetAccountIdAsync().GetAwaiter().GetResult();
 
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         }
 
-        public ICsv<CsvCashOperation> GetCashOperations(int year)
+        public async Task<ICsv<CsvCashOperation>> GetCashOperationsAsync(int year)
         {
             var startDate = new DateTime(year, 1, 1);
             var endDate = new DateTime(year, 12, 31);
 
-            return DownloadCsv<CsvCashOperation>(_configuration.CashOperationsUrl, startDate, endDate);
+            return await DownloadCsvAsync<CsvCashOperation>(_configuration.CashOperationsUrl, startDate, endDate);
         }
 
-        public ICsv<CsvTransaction> GetTransactions()
+        public async Task<ICsv<CsvTransaction>> GetTransactionsAsync()
         {
             //This date needs to be before 1st transaction.
             //Since Degiro was founded in 2008 I assume that there should be no transaction before that.
             var startDate = new DateTime(2007, 1, 1);
-
             var endDate = DateTime.Now.AddDays(1);
 
-            return DownloadCsv<CsvTransaction>(_configuration.TransactionsUrl, startDate, endDate);
+            return await DownloadCsvAsync<CsvTransaction>(_configuration.TransactionsUrl, startDate, endDate);
         }
 
-        private ICsv<T> DownloadCsv<T>(string url, DateTime startDate, DateTime endDate)
+        private async Task<ICsv<T>> DownloadCsvAsync<T>(string url, DateTime startDate, DateTime endDate)
         {
             const string dateFormat = "dd'%2F'MM'%2F'yyyy";
 
-            var request = new RestRequest(
-                string.Format(url, _accountId, _jSessionId, startDate.ToString(dateFormat), endDate.ToString(dateFormat)));
+            var formattedUrl = string.Format(url, _accountId, _jSessionId, startDate.ToString(dateFormat), endDate.ToString(dateFormat));
+            var request = new RestRequest(formattedUrl);
 
-            return new Csv<T>(Encoding.UTF8.GetString(_client.DownloadData(request)));
+            var data = await _client.DownloadDataAsync(request);
+            return new Csv<T>(Encoding.UTF8.GetString(data));
         }
 
-        private string GetAccountId()
+        private async Task<string> GetAccountIdAsync()
         {
             var request = new RestRequest(string.Format(_configuration.AccountUrl, _jSessionId));
-            return JObject.Parse(_client.Execute(request).Content)["data"]["intAccount"].ToString();
+            var response = await _client.ExecuteAsync(request);
+
+            if (!response.IsSuccessful)
+            {
+                throw new Exception($"Failed to get account ID: {response.ErrorMessage}");
+            }
+
+            return JObject.Parse(response.Content!)["data"]!["intAccount"]!.ToString();
         }
     }
 }
