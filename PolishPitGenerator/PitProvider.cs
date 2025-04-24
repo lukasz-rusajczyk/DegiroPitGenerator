@@ -43,6 +43,8 @@ namespace PolishPitGenerator
 
         private Report GenerateReport(List<FinancialInstrumentBalance> financialInstrumentBalances, List<PitDividend> dividends, List<PitFee> fees)
         {
+            var test = financialInstrumentBalances.Sum(fib => fib.AllUnitsClosedInYear.Sum(au => au.GetIncome())).Round2() - financialInstrumentBalances.Sum(fib => fib.AllUnitsClosedInYear.Sum(au =>  au.GetTotalCost())).Round2();
+            
             return new Report
             {
                 GeneratorVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString(),
@@ -61,9 +63,9 @@ namespace PolishPitGenerator
                         .Select(g => new PitZG
                     {
                         Country = g.Key,
-                        C3_32 = g.Sum(fib => fib.AllUnitsClosedInYear.Sum(au => au.GetProfit())).Round2(),
+                        C3_29 = g.Sum(fib => fib.AllUnitsClosedInYear.Sum(au => au.GetProfit())).Round2(),
                         //Assumging there was no Tax taken from the transaction profit
-                        C3_33 = 0m
+                        C3_30 = 0m
                     })
                 },
                 ConsolidatedReport = new ConsolidatedReport

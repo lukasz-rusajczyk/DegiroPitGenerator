@@ -42,13 +42,16 @@ namespace Integrations.Degiro
             if (records is List<CsvTransaction> transactions)
                 //There are some artifact rows in Degiro transaction csv
                 transactions.RemoveAll(_ => _.TransactionId == "");
-            else if(records is IEnumerable<CsvCashOperation> cashOperations)
-            {
-                //CsvReader does not support polish culture info, so we need to manually adjust it
-                cashOperations.ForEach(_ => _.BalanceAmount /= 100m);
-                cashOperations.ForEach(_ => _.ChangeAmount /= 100m);
-                cashOperations.ForEach(_ => _.ExchangeRate /= 10000m);
-            }
+
+            //Commented out, because as of 04.2025 degiro outputs CsvReader compatibile output 
+            //for polish account with language set to english
+                // else if(records is IEnumerable<CsvCashOperation> cashOperations)
+                // {
+                //         //CsvReader does not support polish culture info, so we need to manually adjust it
+                //         cashOperations.ForEach(_ => _.ExchangeRate /= 10000m);
+                //         cashOperations.ForEach(_ => _.BalanceAmount /= 100m);
+                //         cashOperations.ForEach(_ => _.ChangeAmount /= 100m);
+                // }
 
             return records;
         }
