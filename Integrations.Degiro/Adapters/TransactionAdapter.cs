@@ -32,7 +32,6 @@ namespace Integrations.Degiro.Adapters
             foreach (var degiroTransaction in degiroTransactions.OrderBy(_ => DateTime.Parse(_.Date, _datesCultureInfo)).ThenBy(_ => TimeSpan.Parse(_.Time)).GroupBy(_ => _.TransactionId))
             {
                 var feeSum = degiroTransaction.Sum(_ => Math.Abs(_.FeeAmount ?? 0));
-
                 //The Distinct().Single() confirms that all dates are the same within TransactionId
                 yield return new Transaction
                 {
@@ -58,7 +57,10 @@ namespace Integrations.Degiro.Adapters
 
         private Country SelectCountry(string stockExchangeName)
         {
-            return _configuration.Domain.StockCountriesMapping[stockExchangeName];
+            var result = _configuration.Domain.StockCountriesMapping[stockExchangeName];
+            if (result == default)
+                throw new Exception($"Stock exchange country mapping for {stockExchangeName} not found");
+            return result;
         }
     }
 }

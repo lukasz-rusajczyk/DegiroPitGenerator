@@ -43,8 +43,6 @@ namespace PolishPitGenerator
 
         private Report GenerateReport(List<FinancialInstrumentBalance> financialInstrumentBalances, List<PitDividend> dividends, List<PitFee> fees)
         {
-            var test = financialInstrumentBalances.Sum(fib => fib.AllUnitsClosedInYear.Sum(au => au.GetIncome())).Round2() - financialInstrumentBalances.Sum(fib => fib.AllUnitsClosedInYear.Sum(au =>  au.GetTotalCost())).Round2();
-            
             return new Report
             {
                 GeneratorVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString(),
