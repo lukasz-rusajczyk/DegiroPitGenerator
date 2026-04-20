@@ -49,9 +49,47 @@ namespace Integrations.Nbp
          
         private string DownloadCsvFromUrl(string url)
         {
+            var csv = DownloadString(url);
+
+            if (LooksLikeHtml(csv))
+            {
+                var fallbackUrl = GetFallbackArchiveUrl(url);
+                if (!string.IsNullOrWhiteSpace(fallbackUrl))
+                    csv = DownloadString(fallbackUrl);
+            }
+
+            if (LooksLikeHtml(csv))
+                throw new InvalidDataException($"NBP returned HTML instead of CSV for '{url}'.");
+
+            return csv;
+        }
+
+        private string DownloadString(string url)
+        {
             var request = new RestRequest(url);
-            request.AddHeader("Accept", "*/*");
+            request.AddHeader("Accept", "text/csv, text/plain, */*");
             return Encoding.GetEncoding("ISO-8859-2").GetString(_client.DownloadData(request));
+        }
+
+        private static bool LooksLikeHtml(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return false;
+
+            var trimmed = content.TrimStart();
+            return trimmed.StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase) ||
+                   trimmed.StartsWith("<html", StringComparison.OrdinalIgnoreCase) ||
+                   trimmed.StartsWith("<meta", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string GetFallbackArchiveUrl(string url)
+        {
+            const string obsoletePrefix = "https://www.nbp.pl/kursy/Archiwum/";
+            const string currentPrefix = "https://static.nbp.pl/dane/kursy/Archiwum/";
+
+            return url.StartsWith(obsoletePrefix, StringComparison.OrdinalIgnoreCase)
+                ? currentPrefix + url.Substring(obsoletePrefix.Length)
+                : null;
         }
 
         private IEnumerable<ExchangeRate> DeserializeCsvToRates(string csv)
