@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
 using Integrations.Degiro.Models.Configuration;
-using PlaywrightSharp;
+using Microsoft.Playwright;
 
 namespace Integrations.Degiro
 {
@@ -17,22 +17,27 @@ namespace Integrations.Degiro
         public async Task<IIntegration> Create()
         {
             using var playwright = await Playwright.CreateAsync();
-            await using var browser = await playwright.Chromium.LaunchAsync();
-            var page = await browser.NewPageAsync();
+            await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            {
+                Headless = true
+            });
 
-            await page.GoToAsync(_configuration.Login.LoginUrl);
+            var context = await browser.NewContextAsync();
+            var page = await context.NewPageAsync();
 
-            await page.WaitForLoadStateAsync(LifecycleEvent.DOMContentLoaded);
+            await page.GotoAsync(_configuration.Login.LoginUrl);
+
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
 
             await page.FillAsync($"xpath={_configuration.Login.XPaths.UsernameTextBox}", _configuration.Credentials.Username);
             await page.FillAsync($"xpath={_configuration.Login.XPaths.PasswordTextBox}", _configuration.Credentials.Password);
             await page.ClickAsync($"xpath={_configuration.Login.XPaths.LoginButton}");
 
-            //It takes some time to get the right cookie back, so let's wait for page to fully redirect
-            await page.WaitForLoadStateAsync(LifecycleEvent.Networkidle);
+            // Wait until network activity settles after login
+            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
-            var cookies = await page.Context.GetCookiesAsync(page.Url);
-            var jSessionId = cookies.Single(_ => _.Name == _configuration.Login.SessionCookieName).Value;
+            var cookies = await context.CookiesAsync();
+            var jSessionId = cookies.Single(c => c.Name == _configuration.Login.SessionCookieName).Value;
 
             return new Integration(_configuration.Requests, jSessionId);
         }
